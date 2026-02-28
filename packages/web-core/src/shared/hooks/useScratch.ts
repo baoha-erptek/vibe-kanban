@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { useJsonPatchWsStream } from '@/shared/hooks/useJsonPatchWsStream';
+import { useAppRuntime } from '@/shared/hooks/useAppRuntime';
 import { scratchApi } from '@/shared/lib/api';
 import { ScratchType, type Scratch, type UpdateScratch } from 'shared/types';
 
@@ -30,8 +31,18 @@ export const useScratch = (
   id: string,
   options?: UseScratchOptions
 ): UseScratchResult => {
-  // Skip connection when disabled or no ID
-  const enabled = (options?.enabled ?? true) && id.length > 0;
+  // Scratch WebSocket streams are only available on the local VK server.
+  // On remote deployments, disable the connection to prevent WebSocket errors.
+  let runtime: 'local' | 'remote' = 'local';
+  try {
+    runtime = useAppRuntime();
+  } catch {
+    // If no AppRuntimeProvider, assume local (backward compatible)
+  }
+  const isRemote = runtime === 'remote';
+
+  // Skip connection when disabled, no ID, or running on remote server
+  const enabled = (options?.enabled ?? true) && id.length > 0 && !isRemote;
   const endpoint = enabled
     ? scratchApi.getStreamUrl(scratchType, id)
     : undefined;
