@@ -99,11 +99,21 @@ pub async fn spawn_relay(deployment: &DeploymentImpl) {
     tokio::spawn(async move {
         tracing::info!("Relay auto-reconnect loop started");
 
-        let mut delay = std::time::Duration::from_secs(RELAY_RECONNECT_INITIAL_DELAY_SECS);
+        let initial_delay = std::time::Duration::from_secs(RELAY_RECONNECT_INITIAL_DELAY_SECS);
         let max_delay = std::time::Duration::from_secs(RELAY_RECONNECT_MAX_DELAY_SECS);
+        let mut delay = initial_delay;
 
         while !cancel_token.is_cancelled()
-            && let Err(error) = start_relay(&params, cancel_token.clone()).await
+            && let Err(error) = {
+                let connected_at = std::time::Instant::now();
+                let result = start_relay(&params, cancel_token.clone()).await;
+                // Reset backoff if the connection was alive for a meaningful period,
+                // indicating this is a fresh disconnection rather than a rapid failure.
+                if connected_at.elapsed() > std::time::Duration::from_secs(30) {
+                    delay = initial_delay;
+                }
+                result
+            }
         {
             tracing::debug!(
                 ?error,

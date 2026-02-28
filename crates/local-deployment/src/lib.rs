@@ -177,6 +177,28 @@ impl Deployment for LocalDeployment {
         let trusted_key_auth = TrustedKeyAuthRuntime::new(trusted_keys_path());
         let relay_signing = RelaySigningService::load_or_generate(&server_signing_key_path())
             .expect("Failed to load or generate server signing key");
+
+        // Restore signing sessions from persisted trusted clients so browsers
+        // don't need to re-pair after server restart.
+        if let Ok(clients) = trusted_key_auth.list_trusted_clients().await {
+            for client in &clients {
+                if let Some(session_id) = client.signing_session_id {
+                    if let Ok(key) = trusted_key_auth::trusted_keys::parse_public_key_base64(
+                        &client.public_key_b64,
+                    ) {
+                        relay_signing
+                            .create_session_with_id(session_id, key)
+                            .await;
+                        tracing::info!(
+                            %session_id,
+                            client_id = %client.client_id,
+                            "Restored signing session from trusted client"
+                        );
+                    }
+                }
+            }
+        }
+
         let relay_control = Arc::new(RelayControl::new());
         let server_info = Arc::new(ServerInfo::new());
 

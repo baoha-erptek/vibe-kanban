@@ -194,16 +194,19 @@ function resolveRelayHostIdForCurrentPage(): string | null {
     return null;
   }
 
-  if (!isWorkspaceRoutePath(window.location.pathname)) {
-    return null;
+  // On workspace routes, allow setting the active host from URL params
+  if (isWorkspaceRoutePath(window.location.pathname)) {
+    const hostIdFromSearch = parseRelayHostIdFromSearch(window.location.search);
+    if (hostIdFromSearch) {
+      setActiveRelayHostId(hostIdFromSearch);
+      return hostIdFromSearch;
+    }
   }
 
-  const hostIdFromSearch = parseRelayHostIdFromSearch(window.location.search);
-  if (hostIdFromSearch) {
-    setActiveRelayHostId(hostIdFromSearch);
-    return hostIdFromSearch;
-  }
-
+  // Always try the cached active host for relay-eligible API calls.
+  // This allows relay routing on non-workspace pages (e.g. /projects/{id})
+  // where workspace creation dialogs open as modals and need to reach the
+  // local VK client through the relay.
   return getActiveRelayHostId();
 }
 

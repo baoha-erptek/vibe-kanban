@@ -223,7 +223,12 @@ async fn finish_spake2_enrollment(
     )
     .map_err(|_| ApiError::Unauthorized)?;
 
-    // Persist the browser's public key so it survives server restarts
+    let signing_session_id = deployment
+        .relay_signing()
+        .create_session(browser_public_key)
+        .await;
+
+    // Persist the browser's public key and signing session ID so they survive server restarts
     if let Err(e) = deployment
         .trusted_key_auth()
         .persist_trusted_client(TrustedRelayClient {
@@ -233,16 +238,12 @@ async fn finish_spake2_enrollment(
             client_os: payload.client_os.clone(),
             client_device: payload.client_device.clone(),
             public_key_b64: payload.public_key_b64.clone(),
+            signing_session_id: Some(signing_session_id),
         })
         .await
     {
         tracing::warn!(?e, "Failed to persist trusted relay client");
     }
-
-    let signing_session_id = deployment
-        .relay_signing()
-        .create_session(browser_public_key)
-        .await;
 
     let server_proof_b64 = build_server_proof(
         &shared_key,

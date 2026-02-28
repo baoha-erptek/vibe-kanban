@@ -40,9 +40,9 @@ impl RelaySignatureValidationError {
     }
 }
 
-const RELAY_SIGNATURE_MAX_TIMESTAMP_DRIFT_SECS: i64 = 30;
-const RELAY_SIGNING_SESSION_TTL: Duration = Duration::from_secs(60 * 60);
-const RELAY_SIGNING_SESSION_IDLE_TTL: Duration = Duration::from_secs(15 * 60);
+const RELAY_SIGNATURE_MAX_TIMESTAMP_DRIFT_SECS: i64 = 300;
+const RELAY_SIGNING_SESSION_TTL: Duration = Duration::from_secs(7 * 24 * 60 * 60);
+const RELAY_SIGNING_SESSION_IDLE_TTL: Duration = Duration::from_secs(24 * 60 * 60);
 const RELAY_NONCE_TTL: Duration = Duration::from_secs(2 * 60);
 
 #[derive(Clone)]
@@ -97,6 +97,16 @@ impl RelaySigningService {
 
     pub async fn create_session(&self, browser_public_key: VerifyingKey) -> Uuid {
         let signing_session_id = Uuid::new_v4();
+        self.create_session_with_id(signing_session_id, browser_public_key)
+            .await;
+        signing_session_id
+    }
+
+    pub async fn create_session_with_id(
+        &self,
+        signing_session_id: Uuid,
+        browser_public_key: VerifyingKey,
+    ) {
         let now = Instant::now();
         let mut sessions = self.sessions.write().await;
         sessions.insert(
@@ -108,7 +118,6 @@ impl RelaySigningService {
                 seen_nonces: HashMap::new(),
             },
         );
-        signing_session_id
     }
 
     pub async fn verify_message(

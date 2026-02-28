@@ -18,6 +18,8 @@ pub struct TrustedRelayClient {
     pub client_os: String,
     pub client_device: String,
     pub public_key_b64: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub signing_session_id: Option<Uuid>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
@@ -206,6 +208,7 @@ mod tests {
                 client_browser: "Chrome".to_string(),
                 client_os: "macOS".to_string(),
                 client_device: "desktop".to_string(),
+                signing_session_id: None,
                 public_key_b64: key_b64.clone(),
             },
         )
