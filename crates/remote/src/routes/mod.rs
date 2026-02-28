@@ -1,7 +1,8 @@
 use axum::{
     Json, Router,
-    http::header::HeaderName,
+    http::{StatusCode, header::HeaderName},
     middleware,
+    response::IntoResponse,
     routing::get,
 };
 use serde::Serialize;
@@ -144,9 +145,15 @@ pub fn router(state: AppState) -> Router {
     let spa =
         ServeDir::new(static_dir).fallback(ServeFile::new(format!("{static_dir}/index.html")));
 
+    // Catch /api/* requests that only exist on the local server (e.g. scratch WebSocket)
+    // and return a proper 404 instead of letting the SPA fallback serve HTML,
+    // which causes WebSocket handshake failures and console spam.
+    let api_not_found = Router::<AppState>::new().fallback(api_not_available);
+
     Router::<AppState>::new()
         .nest("/v1", v1_public)
         .nest("/v1", v1_protected)
+        .nest("/api", api_not_found)
         .fallback_service(spa)
         .layer(middleware::from_fn(
             crate::middleware::version::add_version_headers,
@@ -180,6 +187,18 @@ async fn health() -> Json<HealthResponse> {
         status: "ok",
         version: env!("CARGO_PKG_VERSION"),
     })
+}
+
+/// Returns 404 for /api/* routes that only exist on the local VK server.
+/// Prevents the SPA fallback from serving HTML for WebSocket upgrade requests.
+async fn api_not_available() -> impl IntoResponse {
+    (
+        StatusCode::NOT_FOUND,
+        Json(serde_json::json!({
+            "error": "not_available",
+            "message": "This endpoint is only available on the local VK client"
+        })),
+    )
 }
 
 /// Collect all mutation definitions for TypeScript generation.
