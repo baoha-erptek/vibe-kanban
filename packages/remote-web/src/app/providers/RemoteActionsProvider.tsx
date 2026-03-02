@@ -14,6 +14,7 @@ import {
 } from "@/shared/hooks/useActions";
 import { UserContext } from "@/shared/hooks/useUserContext";
 import {
+  ActionTargetType,
   type ActionDefinition,
   type ActionExecutorContext,
   type ActionVisibilityContext,
@@ -22,6 +23,7 @@ import {
   type ProjectMutations,
 } from "@/shared/types/actions";
 import { SettingsDialog } from "@/shared/dialogs/settings/SettingsDialog";
+import { ConfirmDialog } from "@vibe/ui/components/ConfirmDialog";
 import { buildIssueCreatePath } from "@/shared/lib/routes/projectSidebarRoutes";
 import { useOrganizationStore } from "@/shared/stores/useOrganizationStore";
 import { REMOTE_SETTINGS_SECTIONS } from "@remote/shared/constants/settings";
@@ -136,7 +138,12 @@ export function RemoteActionsProvider({
   );
 
   const executeAction = useCallback(
-    async (action: ActionDefinition): Promise<void> => {
+    async (
+      action: ActionDefinition,
+      workspaceId?: string,
+      repoIdOrProjectId?: string,
+      issueIds?: string[],
+    ): Promise<void> => {
       if (action.id === "settings") {
         await SettingsDialog.show({
           initialSection: "organizations",
@@ -157,11 +164,64 @@ export function RemoteActionsProvider({
         return;
       }
 
-      console.warn(
-        `[RemoteActionsProvider] Action "${action.id}" is unavailable in remote web.`,
-      );
+      try {
+        switch (action.requiresTarget) {
+          case ActionTargetType.NONE:
+            await action.execute(executorContext);
+            break;
+
+          case ActionTargetType.WORKSPACE:
+            if (!workspaceId) {
+              throw new Error(
+                `Action "${action.id}" requires a workspace target`,
+              );
+            }
+            await action.execute(executorContext, workspaceId);
+            break;
+
+          case ActionTargetType.GIT:
+            if (!workspaceId || !repoIdOrProjectId) {
+              throw new Error(
+                `Action "${action.id}" requires both workspace and repository`,
+              );
+            }
+            await action.execute(
+              executorContext,
+              workspaceId,
+              repoIdOrProjectId,
+            );
+            break;
+
+          case ActionTargetType.ISSUE:
+            if (!repoIdOrProjectId || !issueIds || issueIds.length === 0) {
+              throw new Error(
+                `Action "${action.id}" requires project and issue selection`,
+              );
+            }
+            await action.execute(
+              executorContext,
+              repoIdOrProjectId,
+              issueIds,
+            );
+            break;
+
+          default:
+            console.warn(
+              `[RemoteActionsProvider] Action "${(action as ActionDefinition).id}" has unknown target type.`,
+            );
+        }
+      } catch (error) {
+        ConfirmDialog.show({
+          title: "Error",
+          message:
+            error instanceof Error ? error.message : "An error occurred",
+          confirmText: "OK",
+          showCancelButton: false,
+          variant: "destructive",
+        });
+      }
     },
-    [projectId, selectedOrgId],
+    [projectId, selectedOrgId, executorContext],
   );
 
   const getLabel = useCallback(

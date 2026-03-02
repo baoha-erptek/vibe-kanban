@@ -22,12 +22,19 @@ export const ExecutionProcessesContext =
     null
   );
 
+const defaultContext: ExecutionProcessesContextType = {
+  executionProcessesAll: [],
+  executionProcessesByIdAll: {},
+  isAttemptRunningAll: false,
+  executionProcessesVisible: [],
+  executionProcessesByIdVisible: {},
+  isAttemptRunningVisible: false,
+  isLoading: false,
+  isConnected: false,
+  error: null,
+};
+
 export const useExecutionProcessesContext = () => {
   const ctx = useContext(ExecutionProcessesContext);
-  if (!ctx) {
-    throw new Error(
-      'useExecutionProcessesContext must be used within ExecutionProcessesProvider'
-    );
-  }
-  return ctx;
+  return ctx ?? defaultContext;
 };
