@@ -1,0 +1,28 @@
+Codemap Generation Report
+========================
+Date: 2026-03-02
+Status: Initial generation (no previous codemaps existed)
+
+Files Generated:
+  docs/CODEMAPS/architecture.md  (~900 tokens) - System overview, monorepo layout, data flow
+  docs/CODEMAPS/backend.md       (~950 tokens) - API routes, services, crate dependencies
+  docs/CODEMAPS/frontend.md      (~950 tokens) - Provider trees, routes, state management
+  docs/CODEMAPS/data.md          (~700 tokens) - Database tables, migrations, type generation
+  docs/CODEMAPS/dependencies.md  (~800 tokens) - External services, packages, CI/CD
+
+Project Summary:
+  Rust crates:     17 workspace + 2 excluded (remote, relay-tunnel)
+  Frontend pkgs:   5 (local-web, remote-web, web-core, ui, public)
+  DB migrations:   59 (SQLite local) + separate remote (Postgres)
+  API routes:      80+ endpoints across 15 route modules
+  Services:        20+ business logic modules
+  Hooks:           85+ shared React hooks
+  Executors:       9 AI agents (Claude, Amp, Gemini, Codex, etc.)
+
+Architecture Notes:
+  - Dual deployment: local (SQLite + desktop) / remote (Postgres + Docker)
+  - Trait-based abstraction: Deployment, ContainerService, GitHostProvider
+  - Real-time sync via ElectricSQL + WebSocket + JSON Patch
+  - Type safety pipeline: Rust → ts-rs → shared/types.ts → React
+  - File-based routing with TanStack Router
+  - Layered state: TanStack Query + Zustand + React Context
